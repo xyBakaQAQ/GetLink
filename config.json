@@ -1,0 +1,6 @@
+{
+    "debug": true,
+    "auto_connect": true,
+    "auto_connect_ip": "127.0.0.1",
+    "auto_connect_port": "16384"
+}
