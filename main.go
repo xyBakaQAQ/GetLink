@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"github.com/atotto/clipboard"
 )
 
 type Config struct {
@@ -15,6 +17,7 @@ type Config struct {
 	AutoConnect     bool   `json:"auto_connect"`      // 是否开启自动连接
 	AutoConnectIP   string `json:"auto_connect_ip"`   // 自动连接的 IP
 	AutoConnectPort string `json:"auto_connect_port"` // 自动连接的端口
+	AutoCopy        bool   `json:"auto_copy"`         // 出结果后自动复制
 }
 
 var config = Config{
@@ -22,6 +25,7 @@ var config = Config{
 	AutoConnect:     false,       // 默认不启用自动连接
 	AutoConnectIP:   "127.0.0.1", // 默认自动连接 IP
 	AutoConnectPort: "16384",     // 默认自动连接端口
+	AutoCopy:        false,       // 默认关闭
 }
 
 // 读取配置文件并加载到 config 变量中
@@ -91,6 +95,18 @@ func selectDevice(devices []string) (string, error) {
 	return devices[choice-1], nil
 }
 
+// copyToClipboard 用于将文本复制到剪贴板
+func copyToClipboard(text string) {
+	if !config.AutoCopy {
+		return
+	}
+	if err := clipboard.WriteAll(text); err != nil {
+		fmt.Println("[WARN] 复制到剪贴板失败:", err)
+		return
+	}
+	fmt.Println("[INFO] URL 已自动复制到剪贴板")
+}
+
 // extractURLs 用于从设备日志中提取 URL
 func extractURLs(deviceID string) {
 	cmd := exec.Command("adb", "-s", deviceID, "shell", "logcat")
@@ -105,9 +121,9 @@ func extractURLs(deviceID string) {
 	scanner := bufio.NewScanner(stdout)
 
 	// 定义正则表达式
-	ysURLRegex := regexp.MustCompile(`https://webstatic\.mihoyo\.com/hk4e/event/[^\s]+`)  // 原神
-	starRailURLRegex := regexp.MustCompile(`https://webstatic\.mihoyo\.com/hkrpg/[^\s]+`) // 崩铁
-	zzzURLRegex := regexp.MustCompile(`https://webstatic\.mihoyo\.com/nap/event/[^\s]+`)  // 绝区零 (ZZZ)
+	ysURLRegex := regexp.MustCompile(`https://webstatic\.mihoyo\.com/hk4e/event/[^\s]+`)                        // 原神
+	starRailURLRegex := regexp.MustCompile(`https://webstatic\.mihoyo\.com/hkrpg/[^\s]+`)                       // 崩铁
+	zzzURLRegex := regexp.MustCompile(`https://webstatic\.mihoyo\.com/nap/event/[^\s]+`)                        // 绝区零
 	wuwaURLRegex := regexp.MustCompile(`https://aki-gm-resources\.aki-game\.com/aki/gacha/index\.html#/[^\s]+`) // 鸣潮
 
 	// 从日志中读取每一行并检查是否有符合条件的 URL
@@ -115,24 +131,28 @@ func extractURLs(deviceID string) {
 		line := scanner.Text()
 		if url := ysURLRegex.FindString(line); url != "" {
 			fmt.Println("[原神] 找到的URL:", url)
+			copyToClipboard(url)
 			waitForExit()
 			return
 		}
 		if url := starRailURLRegex.FindString(line); url != "" {
 			fmt.Println("[崩坏：星穹铁道] 找到的URL:", url)
+			copyToClipboard(url)
 			waitForExit()
 			return
 		}
 		if url := zzzURLRegex.FindString(line); url != "" {
 			fmt.Println("[绝区零] 找到的URL:", url)
+			copyToClipboard(url)
 			waitForExit()
 			return
 		}
 		if url := wuwaURLRegex.FindString(line); url != "" {
 			fmt.Println("[鸣潮] 找到的URL:", url)
+			copyToClipboard(url)
 			waitForExit()
 			return
-	}
+		}
 	}
 	fmt.Println("未找到符合条件的URL")
 	waitForExit()
